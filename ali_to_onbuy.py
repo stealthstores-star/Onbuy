@@ -23,11 +23,12 @@ import logging
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+# openpyxl optional — only needed if you want XLSX output
 try:
     import openpyxl
+    HAS_OPENPYXL = True
 except ImportError:
-    print("[ERROR] openpyxl not installed. Run: pip3 install openpyxl --break-system-packages")
-    sys.exit(1)
+    HAS_OPENPYXL = False
 
 # Import image rehosting functions from ali_to_etsy.py
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -430,45 +431,38 @@ def rehost_all_images_onbuy(products):
 
 
 # ============================================================
-# ONBUY XLSX WRITER
+# ONBUY CSV WRITER
 # ============================================================
 
-def write_onbuy_xlsx(onbuy_rows, output_path):
-    """Write products to OnBuy Product Create Template format as XLSX."""
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "Products"
+# OnBuy template headers (matching the official template exactly)
+ONBUY_HEADERS = [
+    "SKU", "Product_Name", "Description", "Default_Image",
+    "Brand", "Category", "Condition", "EAN",
+    "Price", "Stock", "Handling_Time", "Shipping_Template_Id",
+    "Shipping_Weight_(Kg)", "Warranty (Months)", "Free Returns",
+    "ASIN", "MPN", "RRP",
+    "Parent_Group", "Variant_One_Name", "Variant_One_Value",
+    "Variant_Two_Name", "Variant_Two_Value",
+    "Clothing Size", "Colour",
+    "Summary_Point_One", "Summary_Point_Two", "Summary_Point_Three",
+    "Summary_Point_Four", "Summary_Point_Five",
+    "Additional_images_One", "Additional_images_Two",
+    "Additional_images_Three", "Additional_images_Four",
+    "Additional_images_Five", "Additional_images_Six",
+    "Additional_images_Seven", "Additional_images_Eight",
+    "Additional_images_Nine", "Additional_images_Ten",
+]
 
-    # OnBuy template headers (matching the official template exactly)
-    headers = [
-        "SKU", "Product_Name", "Description", "Default_Image",
-        "Brand", "Category", "Condition", "EAN",
-        "Price", "Stock", "Handling_Time", "Shipping_Template_Id",
-        "Shipping_Weight_(Kg)", "Warranty (Months)", "Free Returns",
-        "ASIN", "MPN", "RRP",
-        "Parent_Group", "Variant_One_Name", "Variant_One_Value",
-        "Variant_Two_Name", "Variant_Two_Value",
-        "Clothing Size", "Colour",
-        "Summary_Point_One", "Summary_Point_Two", "Summary_Point_Three",
-        "Summary_Point_Four", "Summary_Point_Five",
-        "Additional_images_One", "Additional_images_Two",
-        "Additional_images_Three", "Additional_images_Four",
-        "Additional_images_Five", "Additional_images_Six",
-        "Additional_images_Seven", "Additional_images_Eight",
-        "Additional_images_Nine", "Additional_images_Ten",
-    ]
 
-    # Write header row
-    for col_idx, header in enumerate(headers, 1):
-        ws.cell(row=1, column=col_idx, value=header)
-
-    # Write data rows
-    for row_idx, product in enumerate(onbuy_rows, 2):
-        for col_idx, header in enumerate(headers, 1):
-            val = product.get(header, "")
-            ws.cell(row=row_idx, column=col_idx, value=val)
-
-    wb.save(output_path)
+def write_onbuy_csv(onbuy_rows, output_path):
+    """Write products to OnBuy Product Create Template format as CSV."""
+    with open(output_path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(
+            f, fieldnames=ONBUY_HEADERS, extrasaction="ignore",
+            quoting=csv.QUOTE_ALL,
+        )
+        writer.writeheader()
+        writer.writerows(onbuy_rows)
     print(f"[INFO] Saved {len(onbuy_rows)} products to {output_path}")
 
 
@@ -592,7 +586,7 @@ def main():
             "Price": f"{sell_price:.2f}",
             "Stock": STOCK,
             "Handling_Time": HANDLING_DAYS,
-            "Shipping_Template_Id": "",
+            "Shipping_Template_Id": "Deliveries",
             "Shipping_Weight_(Kg)": "",
             "Warranty (Months)": "",
             "Free Returns": FREE_RETURNS,
@@ -631,8 +625,8 @@ def main():
 
     # ---- Write output ----
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_name = f"onbuy_upload_{ts}.xlsx"
-    write_onbuy_xlsx(onbuy_rows, output_name)
+    output_name = f"onbuy_upload_{ts}.csv"
+    write_onbuy_csv(onbuy_rows, output_name)
 
     # ---- Summary ----
     print()
