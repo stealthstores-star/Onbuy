@@ -77,7 +77,7 @@ MAX_PRODUCTS = 1000              # Match GTIN count
 # PRICING
 # ============================================================
 
-def calculate_onbuy_price(cost_gbp, shipping_gbp=None):
+def calculate_onbuy_price(cost_gbp):
     """Calculate sell price: max of (35% margin, £7.50 profit) after OnBuy fees.
 
     OnBuy takes commission% of sell price.
@@ -97,8 +97,7 @@ def calculate_onbuy_price(cost_gbp, shipping_gbp=None):
     if not cost_gbp or cost_gbp <= 0:
         return MIN_SELL_PRICE
 
-    ship = shipping_gbp if shipping_gbp is not None else ALI_SHIPPING_GBP
-    total_cost = cost_gbp + ship
+    total_cost = cost_gbp + ALI_SHIPPING_GBP
 
     # Price for 35% margin
     denom_margin = 1 - ONBUY_COMMISSION - TARGET_MARGIN
@@ -558,8 +557,7 @@ def main():
         title = row.get("product_title", "")
         clean = clean_title_onbuy(title)
         cost_gbp = parse_price(row.get("product_price", ""))
-        shipping_gbp = parse_price(row.get("shipping", "")) or None
-        sell_price = calculate_onbuy_price(cost_gbp, shipping_gbp)
+        sell_price = calculate_onbuy_price(cost_gbp)
         ean = gtins[gtin_idx]
         gtin_idx += 1
 
@@ -647,8 +645,7 @@ def main():
     print()
     print("  Sample profit checks (after OnBuy fees):")
     for row, orig in zip(onbuy_rows[:5], products[:5]):
-        ship = parse_price(orig.get("shipping", "")) or ALI_SHIPPING_GBP
-        cost = parse_price(orig.get("product_price", "")) + ship
+        cost = parse_price(orig.get("product_price", "")) + ALI_SHIPPING_GBP
         sell = float(row["Price"])
         fee = sell * ONBUY_COMMISSION
         profit = sell - fee - cost
